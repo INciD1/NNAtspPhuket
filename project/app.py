@@ -2,11 +2,18 @@ from flask import Flask, jsonify, render_template
 import random
 import googlemaps
 import os
+from dotenv import load_dotenv
+
+load_dotenv()  # loads variables from a local .env file, if present
 
 app = Flask(__name__)
 
-# Google Maps API Key
-API_KEY = "ํYOUR_API_KEY"
+# Google Maps API Key -- read from the environment, never hardcoded here.
+API_KEY = os.environ.get("GOOGLE_MAPS_API_KEY")
+if not API_KEY:
+    raise RuntimeError(
+        "GOOGLE_MAPS_API_KEY is not set. Copy .env.example to .env and add your key."
+    )
 gmaps = googlemaps.Client(key=API_KEY)
 
 # ฟังก์ชันตรวจสอบว่าเป็น Apartment หรือ Condo หรือที่อื่นๆ
@@ -40,7 +47,9 @@ raw_locations = load_locations(NLP_FILE_PATH)
 
 @app.route("/")
 def index():
-    return render_template("index.html")
+    # Pass the API key to the template server-side, so it's injected into
+    # the page at render time instead of being hardcoded in the HTML source.
+    return render_template("index.html", google_maps_api_key=API_KEY)
 
 @app.route("/generate", methods=["GET"])
 def generate_locations():
@@ -69,4 +78,5 @@ def generate_locations():
     return jsonify(sampled_locations)
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    debug_mode = os.environ.get("FLASK_DEBUG", "false").lower() == "true"
+    app.run(debug=debug_mode)
